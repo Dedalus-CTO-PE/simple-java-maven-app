@@ -1,0 +1,55 @@
+name: Java Maven CI with SonarQube
+
+on:
+  push:
+    branches: [ master, develop ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: [self-hosted, linux]  # or self-hosted
+
+    steps:
+      # Checkout
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # Java 8 setup (matches your Maven 3.6 + Java 8 projects)
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: maven
+
+      # Verify tools
+      - name: Verify versions
+        run: |
+          java -version
+          mvn -version
+
+      # Build & Unit Test
+      - name: Build with Maven
+        run: mvn -B clean verify
+
+      # SonarQube Scan
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          args: >
+            -Dsonar.projectKey=${{ secrets.PROJECT_KEY }}
+            -Dsonar.projectName=${{ secrets.PROJECT_NAME }}
+            -Dsonar.sources=src
+            -Dsonar.java.binaries=target
+
+      # Upload JAR (optional)
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-file
+          path: target/*.jar
